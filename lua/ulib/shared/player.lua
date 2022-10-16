@@ -22,11 +22,11 @@
 
 		v2.40 - Initial.
 ]]
-function ULib.getPicker( ply, radius )
+function ULib.getPicker(ply, radius)
 	radius = radius or 30
 
-	local trace = util.GetPlayerTrace( ply )
-	local trace_results = util.TraceLine( trace )
+	local trace = util.GetPlayerTrace(ply)
+	local trace_results = util.TraceLine(trace)
 
 	if not trace_results.Entity:IsValid() or not trace_results.Entity:IsPlayer() then
 		-- Try finding a best choice
@@ -35,11 +35,12 @@ function ULib.getPicker( ply, radius )
 		local pos = ply:GetPos()
 		local ang = ply:GetAimVector():Angle()
 		local players = player.GetAll()
-		for _, player in ipairs( players ) do
+		for _, player in ipairs(players) do
 			if player ~= ply then
-				local vec_diff = player:GetPos() - Vector( 0, 0, 16 ) - pos
+				local vec_diff = player:GetPos() - Vector(0, 0, 16) - pos
 				local newang = vec_diff:Angle()
-				local diff = math.abs( math.NormalizeAngle( newang.pitch - ang.pitch ) ) + math.abs( math.NormalizeAngle( newang.yaw - ang.yaw ) )
+				local diff = math.abs(math.NormalizeAngle(newang.pitch - ang.pitch)) +
+					math.abs(math.NormalizeAngle(newang.yaw - ang.yaw))
 				if not best_choice_diff or diff < best_choice_diff then
 					best_choice_diff = diff
 					best_choice = player
@@ -57,9 +58,10 @@ function ULib.getPicker( ply, radius )
 	end
 end
 
-
-local Player = FindMetaTable( "Player" )
-local checkIndexes = { Player.UniqueID, function( ply ) if CLIENT then return "" end local ip = ULib.splitPort( ply:IPAddress() ) return ip end, Player.SteamID, Player.UserID }
+local Player = FindMetaTable("Player")
+local checkIndexes = { Player.UniqueID,
+	function(ply) if CLIENT then return "" end local ip = ULib.splitPort(ply:IPAddress()) return ip end, Player.SteamID,
+	Player.UserID }
 --[[
 	Function: getPlyByID
 
@@ -77,13 +79,13 @@ local checkIndexes = { Player.UniqueID, function( ply ) if CLIENT then return ""
 
 		v2.50 - Initial.
 ]]
-function ULib.getPlyByID( id )
+function ULib.getPlyByID(id)
 	id = id:upper()
 
 	local players = player.GetAll()
-	for _, indexFn in ipairs( checkIndexes ) do
-		for _, ply in ipairs( players ) do
-			if tostring( indexFn( ply ) ) == id then
+	for _, indexFn in ipairs(checkIndexes) do
+		for _, ply in ipairs(players) do
+			if tostring(indexFn(ply)) == id then
 				return ply
 			end
 		end
@@ -91,7 +93,6 @@ function ULib.getPlyByID( id )
 
 	return nil
 end
-
 
 --[[
 	Function: getUniqueIDForPly
@@ -111,22 +112,21 @@ end
 		v2.50 - Initial.
 		v2.51 - Added exception for single player since it's handled differently on client and server.
 ]]
-function ULib.getUniqueIDForPlayer( ply )
+function ULib.getUniqueIDForPlayer(ply)
 	if game.SinglePlayer() then
 		return "1"
 	end
 
 	local players = player.GetAll()
-	for _, indexFn in ipairs( checkIndexes ) do
-		local id = indexFn( ply )
-		if ULib.getUser( "$" .. id, true ) == ply then
+	for _, indexFn in ipairs(checkIndexes) do
+		local id = indexFn(ply)
+		if ULib.getUser("$" .. id, true) == ply then
 			return id
 		end
 	end
 
 	return nil
 end
-
 
 --[[
 	Function: getUsers
@@ -136,14 +136,10 @@ end
 	Parameters:
 
 		target - A string of what you'd like to target. Accepts a comma separated list.
-		enable_keywords - *(Optional, defaults to false)* If true, various keywords will be enabled:
-			"*" for all players,
-			"^" for self,
-			"@" for picker (person in front of you),
-			"#<group>" for those inside a specific group,
-			"%<group>" for users inside a group (counting inheritance),
-			"$<id>" for users matching a particular ID, and
-			"@<team>" for users inside a given team
+		enable_keywords - *(Optional, defaults to false)* If true, the keywords "*" for all players, "^" for self,
+			"@" for picker (person in front of you), "#<group>" for those inside a specific group,
+			"%<group>" for users inside a group (counting inheritance), and "$<id>" for users matching a
+			particular ID will be activated.
 			Any of these can be negated with "!" before it. IE, "!^" targets everyone but yourself.
 		ply - *(Optional)* Player needing getUsers, this is necessary for some of the keywords.
 
@@ -156,10 +152,48 @@ end
 		v2.40 - Rewrite, added more keywords, removed immunity.
 		v2.50 - Added "#" and '$' keywords, removed special exception for "%user" (replaced by "#user").
 		v2.60 - Returns false if target is an empty string.
-		v2.70 - Added "@<team>" keyword extension.
 ]]
-function ULib.getUsers( target, enable_keywords, ply )
-	print(target)
+
+--[[
+
+ 0 - inocente
+ 1 - traidor
+ 2 - detetive
+ 3 - vivo
+ 4 - morto
+ 5 - spec
+ 6 - specdm
+]]
+
+function GetPlayerFilter(param)
+	local result = {}
+
+	for k, v in ipairs(player:GetAll()) do
+		if param > 2 then
+			if param == 3 and v:Alive() then
+				table.insert(result, v)
+			end
+			if param == 4 and (!v:Alive() and !v:IsSpec() and !v:IsGhost()) then
+				table.insert(result, v)
+			end
+			if param == 5 and (v:IsSpec() and v:Alive()) then
+				table.insert(result, v)
+			end
+			if param == 6 and v:IsGhost() then
+				table.insert(result, v)
+			end
+		else 
+			if v:GetRole() == param then
+				table.insert(result, v)
+			end
+		end
+		
+	end
+
+	return result
+end
+
+function ULib.getUsers(target, enable_keywords, ply)
 	if target == "" then
 		return false, "No target specified!"
 	end
@@ -167,113 +201,155 @@ function ULib.getUsers( target, enable_keywords, ply )
 	local players = player.GetAll()
 
 	-- First, do a full name match in case someone's trying to exploit our target system
-	for _, player in ipairs( players ) do
+	for _, player in ipairs(players) do
 		if target:lower() == player:Nick():lower() then
 			return { player }
 		end
 	end
-
 	-- Okay, now onto the show!
 	local targetPlys = {}
-	local pieces = ULib.explode( ",", target )
-	for _, piece in ipairs( pieces ) do
+	local pieces = ULib.explode(",", target)
+	for _, piece in ipairs(pieces) do
 		piece = piece:Trim()
 		if piece ~= "" then
 			local keywordMatch = false
 			if enable_keywords then
 				local tmpTargets = {}
 				local negate = false
-				if piece:sub( 1, 1 ) == "!" and piece:len() > 1 then
+				if piece:sub(1, 1) == "!" and piece:len() > 1 then
 					negate = true
-					piece = piece:sub( 2 )
+					piece = piece:sub(2)
 				end
 
-				if piece:sub( 1, 1 ) == "$" then
-					local player = ULib.getPlyByID( piece:sub( 2 ) )
+				if piece:sub(1, 1) == "$" then
+					local player = ULib.getPlyByID(piece:sub(2))
 					if player then
-						table.insert( tmpTargets, player )
+						table.insert(tmpTargets, player)
 					end
 				elseif piece == "*" then -- All!
-					table.Add( tmpTargets, players )
+					table.Add(tmpTargets, players)
 				elseif piece == "^" then -- Self!
 					if ply then
 						if ply:IsValid() then
-							table.insert( tmpTargets, ply )
+							table.insert(tmpTargets, ply)
 						elseif not negate then
 							return false, "You cannot target yourself from console!"
 						end
 					end
-				elseif piece:sub( 1, 1 ) == "@" then
-					if #piece == 1 then
-						if IsValid( ply ) then
-							local player = ULib.getPicker( ply )
-							if player then
-								table.insert( tmpTargets, player )
+				elseif piece == "@" then
+					if IsValid(ply) then
+
+						local player = ULib.getPicker(ply)
+						if player then
+							table.insert(tmpTargets, player)
+						end
+					end
+				elseif piece == "@t" then
+					if IsValid(ply) then
+
+						for k, v in ipairs(GetPlayerFilter(1)) do
+
+							if v then
+								table.insert(tmpTargets, v)
 							end
 						end
-					else
-						local teamNameOrId = piece:sub( 2 )
-						local teamId = tonumber( teamNameOrId )
 
-						if teamId then
-							for _, ply in ipairs( team.GetPlayers( teamId ) ) do
-								table.insert( tmpTargets, ply )
-							end
-						else
-							local teams = team.GetAllTeams()
+					end
+				elseif piece == "@i" then
+					if IsValid(ply) then
 
-							-- This can't be ipairs, as it's indexed by ID, starts at 0 and may not be sequential.
-							for teamId, teamData in pairs( teams ) do
-								if teamData.Name == teamNameOrId then
-									for _, ply in ipairs( team.GetPlayers( teamId ) ) do
-										table.insert( tmpTargets, ply )
-									end
+						for k, v in ipairs(GetPlayerFilter(0)) do
 
-									break
-								end
+							if v then
+								table.insert(tmpTargets, v)
 							end
 						end
 					end
-				elseif piece:sub( 1, 1 ) == "#" and ULib.ucl.groups[ piece:sub( 2 ) ] then
-					local group = piece:sub( 2 )
-					for _, player in ipairs( players ) do
+				elseif piece == "@d" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(2)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+					end
+				elseif piece == "@spec" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(5)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+					end
+				elseif piece == "@dead" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(4)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+					end
+				elseif piece == "@specdm" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(6)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+					end
+				elseif piece == "@alive" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(3)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+					end
+				elseif piece:sub(1, 1) == "#" and ULib.ucl.groups[piece:sub(2)] then
+					local group = piece:sub(2)
+					for _, player in ipairs(players) do
 						if player:GetUserGroup() == group then
-							table.insert( tmpTargets, player )
+							table.insert(tmpTargets, player)
 						end
 					end
-				elseif piece:sub( 1, 1 ) == "%" and ULib.ucl.groups[ piece:sub( 2 ) ] then
-					local group = piece:sub( 2 )
-					for _, player in ipairs( players ) do
-						if player:CheckGroup( group ) then
-							table.insert( tmpTargets, player )
+				elseif piece:sub(1, 1) == "%" and ULib.ucl.groups[piece:sub(2)] then
+					local group = piece:sub(2)
+					for _, player in ipairs(players) do
+						if player:CheckGroup(group) then
+							table.insert(tmpTargets, player)
 						end
 					end
 				else
-					local tblForHook = hook.Run( ULib.HOOK_GETUSERS_CUSTOM_KEYWORD, piece, ply )
+					local tblForHook = hook.Run(ULib.HOOK_GETUSERS_CUSTOM_KEYWORD, piece, ply)
 					if tblForHook then
-						table.Add( tmpTargets, tblForHook )
+						table.Add(tmpTargets, tblForHook)
 					end
 				end
 
 				if negate then
-					for _, player in ipairs( players ) do
-						if not table.HasValue( tmpTargets, player ) then
+					for _, player in ipairs(players) do
+						if not table.HasValue(tmpTargets, player) then
 							keywordMatch = true
-							table.insert( targetPlys, player )
+							table.insert(targetPlys, player)
 						end
 					end
 				else
 					if #tmpTargets > 0 then
 						keywordMatch = true
-						table.Add( targetPlys, tmpTargets )
+						table.Add(targetPlys, tmpTargets)
 					end
 				end
 			end
 
 			if not keywordMatch then
-				for _, player in ipairs( players ) do
-					if player:Nick():lower():find( piece:lower(), 1, true ) then -- No patterns
-						table.insert( targetPlys, player )
+				for _, player in ipairs(players) do
+					if player:Nick():lower():find(piece:lower(), 1, true) then -- No patterns
+						table.insert(targetPlys, player)
 					end
 				end
 			end
@@ -282,9 +358,9 @@ function ULib.getUsers( target, enable_keywords, ply )
 
 	-- Now remove duplicates
 	local finalTable = {}
-	for _, player in ipairs( targetPlys ) do
-		if not table.HasValue( finalTable, player ) then
-			table.insert( finalTable, player )
+	for _, player in ipairs(targetPlys) do
+		if not table.HasValue(finalTable, player) then
+			table.insert(finalTable, player)
 		end
 	end
 
@@ -294,7 +370,6 @@ function ULib.getUsers( target, enable_keywords, ply )
 
 	return finalTable
 end
-
 
 --[[
 	Function: getUser
@@ -318,7 +393,7 @@ end
 		v2.50 - Added "$" keyword.
 		v2.60 - Returns false if target is an empty string.
 ]]
-function ULib.getUser( target, enable_keywords, ply )
+function ULib.getUser(target, enable_keywords, ply)
 	if target == "" then
 		return false, "No target specified!"
 	end
@@ -327,13 +402,13 @@ function ULib.getUser( target, enable_keywords, ply )
 	target = target:lower()
 
 	local plyMatches = {}
-	if enable_keywords and target:sub( 1, 1 ) == "$" then
-		possibleId = target:sub( 2 )
-		table.insert( plyMatches, ULib.getPlyByID( possibleId ) )
+	if enable_keywords and target:sub(1, 1) == "$" then
+		possibleId = target:sub(2)
+		table.insert(plyMatches, ULib.getPlyByID(possibleId))
 	end
 
 	-- First, do a full name match in case someone's trying to exploit our target system
-	for _, player in ipairs( players ) do
+	for _, player in ipairs(players) do
 		if target == player:Nick():lower() then
 			if #plyMatches == 0 then
 				return player
@@ -350,35 +425,36 @@ function ULib.getUser( target, enable_keywords, ply )
 			else
 				return false, "You cannot target yourself from console!"
 			end
-		elseif IsValid( ply ) and target == "@" then
-			local player = ULib.getPicker( ply )
+		elseif IsValid(ply) and target == "@" then
+			local player = ULib.getPicker(ply)
 			if not player then
 				return false, "No player found in the picker"
 			else
 				return player
 			end
 		else
-			local player = hook.Run( ULib.HOOK_GETUSER_CUSTOM_KEYWORD, target, ply )
+			local player = hook.Run(ULib.HOOK_GETUSER_CUSTOM_KEYWORD, target, ply)
 			if player then return player end
 		end
 	end
 
-	for _, player in ipairs( players ) do
-		if player:Nick():lower():find( target, 1, true ) then -- No patterns
-			table.insert( plyMatches, player )
+	for _, player in ipairs(players) do
+		if player:Nick():lower():find(target, 1, true) then -- No patterns
+			table.insert(plyMatches, player)
 		end
 	end
 
 	if #plyMatches == 0 then
 		return false, "No target found or target has immunity!"
 	elseif #plyMatches > 1 then
-		local str = plyMatches[ 1 ]:Nick()
-		for i=2, #plyMatches do
-			str = str .. ", " .. plyMatches[ i ]:Nick()
+		local str = plyMatches[1]:Nick()
+		for i = 2, #plyMatches do
+			str = str .. ", " .. plyMatches[i]:Nick()
 		end
 
-		return false, "Found multiple targets: " .. str .. ". Please choose a better string for the target. (EG, the whole name)"
+		return false,
+			"Found multiple targets: " .. str .. ". Please choose a better string for the target. (EG, the whole name)"
 	end
 
-	return plyMatches[ 1 ]
+	return plyMatches[1]
 end
