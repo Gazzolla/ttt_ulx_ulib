@@ -159,6 +159,7 @@ end
 		v2.70 - Added "@<team>" keyword extension.
 ]]
 function ULib.getUsers( target, enable_keywords, ply )
+	print(target)
 	if target == "" then
 		return false, "No target specified!"
 	end
