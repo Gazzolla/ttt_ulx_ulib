@@ -155,7 +155,6 @@ end
 ]]
 
 --[[
-
  0 - inocente
  1 - traidor
  2 - detetive
@@ -167,27 +166,33 @@ end
 
 function GetPlayerFilter(param)
 	local result = {}
+	local players = player.GetAll()
 
-	for k, v in ipairs(player:GetAll()) do
+	if (param > 6 or param < 0) then return end
+
+	for k, v in ipairs(players) do
+		if !IsValid(v) then return end
+		-- Não, esta lógica não é boa, mas é necessária para funcionar, já que o BadKingUrgrain não soube diferenciar espectadores de mortos normais
 		if param > 2 then
-			if param == 3 and v:Alive() then
+			if param == 3 and (v:IsTerror() and (v:IsActive() or (v:Alive() and !v:IsSpec()))) then
 				table.insert(result, v)
 			end
-			if param == 4 and (!v:Alive() and !v:IsSpec() and !v:IsGhost()) then
+			if param == 4 and v:IsGhost() then
 				table.insert(result, v)
 			end
-			if param == 5 and (v:IsSpec() and v:Alive()) then
+			if param == 5 and (!v:Alive() and v:IsSpec() and !v:IsGhost()) then
+				if #players == 1 then return end
 				table.insert(result, v)
 			end
-			if param == 6 and v:IsGhost() then
+			-- Gambiarra pra fazer algo que o criador do modo não foi capaz de diferenciar de forma normal
+			if param == 6 and (v:IsSpec() and v:Alive() and !v:IsGhost()) then
 				table.insert(result, v)
 			end
-		else 
-			if v:GetRole() == param then
+		else
+			if (v:GetRole() == param) and not (v:IsSpec() and v:Alive()) then
 				table.insert(result, v)
 			end
 		end
-		
 	end
 
 	return result
@@ -195,9 +200,9 @@ end
 
 function ULib.getUsers(target, enable_keywords, ply)
 	if target == "" then
-		return false, "No target specified!"
+		return false, "Nenhum alvo especificado!"
 	end
-
+	UlxCommandFilter = ""
 	local players = player.GetAll()
 
 	-- First, do a full name match in case someone's trying to exploit our target system
@@ -233,15 +238,30 @@ function ULib.getUsers(target, enable_keywords, ply)
 						if ply:IsValid() then
 							table.insert(tmpTargets, ply)
 						elseif not negate then
-							return false, "You cannot target yourself from console!"
+							return false, "Você não pode afetar a si mesmo pelo console remoto!"
 						end
 					end
-				elseif piece == "@" then
+				elseif piece == "@" then -- Player in front of you!
 					if IsValid(ply) then
 
 						local player = ULib.getPicker(ply)
 						if player then
 							table.insert(tmpTargets, player)
+						end
+					end
+				elseif piece == "@i" then
+					if IsValid(ply) then
+
+						for k, v in ipairs(GetPlayerFilter(0)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+						if !negate then
+							UlxCommandFilter = "innocent"
+						else
+							UlxCommandFilter = "!innocent"
 						end
 					end
 				elseif piece == "@t" then
@@ -253,16 +273,10 @@ function ULib.getUsers(target, enable_keywords, ply)
 								table.insert(tmpTargets, v)
 							end
 						end
-
-					end
-				elseif piece == "@i" then
-					if IsValid(ply) then
-
-						for k, v in ipairs(GetPlayerFilter(0)) do
-
-							if v then
-								table.insert(tmpTargets, v)
-							end
+						if !negate then
+							UlxCommandFilter = "traitor"
+						else
+							UlxCommandFilter = "!traitor"
 						end
 					end
 				elseif piece == "@d" then
@@ -273,32 +287,10 @@ function ULib.getUsers(target, enable_keywords, ply)
 								table.insert(tmpTargets, v)
 							end
 						end
-					end
-				elseif piece == "@spec" then
-					if IsValid(ply) then
-						for k, v in ipairs(GetPlayerFilter(5)) do
-
-							if v then
-								table.insert(tmpTargets, v)
-							end
-						end
-					end
-				elseif piece == "@dead" then
-					if IsValid(ply) then
-						for k, v in ipairs(GetPlayerFilter(4)) do
-
-							if v then
-								table.insert(tmpTargets, v)
-							end
-						end
-					end
-				elseif piece == "@specdm" then
-					if IsValid(ply) then
-						for k, v in ipairs(GetPlayerFilter(6)) do
-
-							if v then
-								table.insert(tmpTargets, v)
-							end
+						if !negate then
+							UlxCommandFilter = "detective"
+						else
+							UlxCommandFilter = "!detective"
 						end
 					end
 				elseif piece == "@alive" then
@@ -308,6 +300,53 @@ function ULib.getUsers(target, enable_keywords, ply)
 							if v then
 								table.insert(tmpTargets, v)
 							end
+						end
+						if !negate then
+							UlxCommandFilter = "alive"
+						else
+							UlxCommandFilter = "!alive"
+						end
+					end
+				elseif piece == "@dm" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(4)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+						if !negate then
+							UlxCommandFilter = "dm"
+						else
+							UlxCommandFilter = "!dm"
+						end
+					end
+				elseif piece == "@dead" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(5)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+						if !negate then
+							UlxCommandFilter = "dead"
+						else
+							UlxCommandFilter = "!dead"
+						end
+					end
+				elseif piece == "@spec" then
+					if IsValid(ply) then
+						for k, v in ipairs(GetPlayerFilter(6)) do
+
+							if v then
+								table.insert(tmpTargets, v)
+							end
+						end
+						if !negate then
+							UlxCommandFilter = "spec"
+						else
+							UlxCommandFilter = "!spec"
 						end
 					end
 				elseif piece:sub(1, 1) == "#" and ULib.ucl.groups[piece:sub(2)] then
@@ -365,7 +404,7 @@ function ULib.getUsers(target, enable_keywords, ply)
 	end
 
 	if #finalTable < 1 then
-		return false, "No target found or target has immunity!"
+		return false, "Nenhum alvo encontrado ou tem imunidade!"
 	end
 
 	return finalTable
@@ -395,7 +434,7 @@ end
 ]]
 function ULib.getUser(target, enable_keywords, ply)
 	if target == "" then
-		return false, "No target specified!"
+		return false, "Nenhum alvo especificado!"
 	end
 
 	local players = player.GetAll()
@@ -413,7 +452,7 @@ function ULib.getUser(target, enable_keywords, ply)
 			if #plyMatches == 0 then
 				return player
 			else
-				return false, "Found multiple targets! Please choose a better string for the target. (EG, the whole name)"
+				return false, "Muitos alvos encontrados! Use uma busca mais precisa pelo alvo. (Ex.: nome inteiro)"
 			end
 		end
 	end
@@ -423,12 +462,12 @@ function ULib.getUser(target, enable_keywords, ply)
 			if ply:IsValid() then
 				return ply
 			else
-				return false, "You cannot target yourself from console!"
+				return false, "Você não pode afetar a si mesmo pelo console remoto!"
 			end
 		elseif IsValid(ply) and target == "@" then
 			local player = ULib.getPicker(ply)
 			if not player then
-				return false, "No player found in the picker"
+				return false, "Ninguém na mira para ser afetado."
 			else
 				return player
 			end
@@ -445,7 +484,7 @@ function ULib.getUser(target, enable_keywords, ply)
 	end
 
 	if #plyMatches == 0 then
-		return false, "No target found or target has immunity!"
+		return false, "Nenhum alvo encontrado ou tem imunidade!"
 	elseif #plyMatches > 1 then
 		local str = plyMatches[1]:Nick()
 		for i = 2, #plyMatches do
@@ -453,7 +492,7 @@ function ULib.getUser(target, enable_keywords, ply)
 		end
 
 		return false,
-			"Found multiple targets: " .. str .. ". Please choose a better string for the target. (EG, the whole name)"
+			"Muitos alvos encontrados: " .. str .. ". Use uma busca mais precisa pelo alvo. (Ex.: nome inteiro)"
 	end
 
 	return plyMatches[1]
