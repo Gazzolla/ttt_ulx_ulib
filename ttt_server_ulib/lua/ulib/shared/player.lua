@@ -159,9 +159,9 @@ end
  1 - traidor
  2 - detetive
  3 - vivo
- 4 - morto
- 5 - spec
- 6 - specdm
+ 4 - specDM
+ 5 - morto
+ 6 - espectador
 ]]
 
 function GetPlayerFilter(param)
@@ -172,7 +172,7 @@ function GetPlayerFilter(param)
 
 	for k, v in ipairs(players) do
 		if !IsValid(v) then return end
-		-- Não, esta lógica não é boa, mas é necessária para funcionar, já que o BadKingUrgrain não soube diferenciar espectadores de mortos normais
+		-- Não, esta lógica não é perfeita, mas funciona. Por ora, é o que importa.
 		if param > 2 then
 			if param == 3 and (v:IsTerror() and (v:IsActive() or (v:Alive() and !v:IsSpec()))) then
 				table.insert(result, v)
@@ -181,15 +181,15 @@ function GetPlayerFilter(param)
 				table.insert(result, v)
 			end
 			if param == 5 and (!v:Alive() and v:IsSpec() and !v:IsGhost()) then
+				-- Gambiarra porque quando só tem um jogador, mortos e espectadores são exatamente a mesma merda
 				if #players == 1 then return end
 				table.insert(result, v)
 			end
-			-- Gambiarra pra fazer algo que o criador do modo não foi capaz de diferenciar de forma normal
 			if param == 6 and (v:IsSpec() and v:Alive() and !v:IsGhost()) then
 				table.insert(result, v)
 			end
 		else
-			if (v:GetRole() == param) and not (v:IsSpec() and v:Alive()) then
+			if (v:GetRole() == param) and not (v:IsSpec() and v:Alive()) then -- porque Espectadores são considerados Inocentes...
 				table.insert(result, v)
 			end
 		end
@@ -231,9 +231,9 @@ function ULib.getUsers(target, enable_keywords, ply)
 					if player then
 						table.insert(tmpTargets, player)
 					end
-				elseif piece == "*" then -- All!
+				elseif piece == "*" then -- TODOS!
 					table.Add(tmpTargets, players)
-				elseif piece == "^" then -- Self!
+				elseif piece == "^" then -- Você mesmo!
 					if ply then
 						if ply:IsValid() then
 							table.insert(tmpTargets, ply)
@@ -241,7 +241,7 @@ function ULib.getUsers(target, enable_keywords, ply)
 							return false, "Você não pode afetar a si mesmo pelo console remoto!"
 						end
 					end
-				elseif piece == "@" then -- Player in front of you!
+				elseif piece == "@" then -- Jogador na sua frente!
 					if IsValid(ply) then
 
 						local player = ULib.getPicker(ply)
