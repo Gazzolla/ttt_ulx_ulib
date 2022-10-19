@@ -248,6 +248,17 @@ local function nameCheck( ply, oldnick, newnick )
 end
 hook.Add( "ULibPlayerNameChanged", "ULXNameChange", nameCheck )
 
+-- Função simples para avisar que passou 1 minuto e meio de rodada, para fins de monitoramento.
+local function TTTUlxLogRoundTime()
+	timer.Simple(90, function() 
+		ulx.logString( string.format( "1 minuto e meio de rodada transcorrido." ) )
+		print("1 minuto e meio de rodada transcorrido.")
+	end)
+end
+if engine.ActiveGamemode() == "terrortown" then 
+	hook.Add( "TTTBeginRound", "UlxTTTLogRoundTime", TTTUlxLogRoundTime, HOOK_MONITOR_HIGH)
+end
+
 local function shutDown()
 	if logEvents:GetBool() then
 		ulx.logString( "Server is shutting down/changing levels." )
